@@ -215,7 +215,7 @@ The Critic can adjust the confidence score downward or override the verdict enti
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_ORG/VisionQA.git
+git clone https://github.com/EtornamKoko/VisionQA.git
 cd VisionQA
 
 # Create virtual environment
@@ -598,7 +598,7 @@ When running URL-based flows (`--url` or `/v1/agent/navigate`), the HTML report 
 |---|---|---|
 | Raw page before action | Annotated with red crosshair on the chosen element | Page after the action was executed |
 
-This gives QA leads — and judges — visual proof that the agent **understood** the page context rather than blindly clicking.
+This gives QA leads — and stakeholders — visual proof that the agent **understood** the page context rather than blindly clicking.
 
 <p align="center">
   <img src="html_report_demo.png" alt="VisionQA HTML Report with Navigator Trail" width="100%">

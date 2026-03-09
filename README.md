@@ -1,6 +1,6 @@
 # VisionQA — The Autonomous Visual SDET
 
-> **Powered by Gemini 2.5 Flash** | Hackathon Category: UI Navigator
+> **Powered by Gemini 2.5 Flash**
 
 VisionQA replaces brittle, selector-based automation with **multimodal reasoning**. It acts as a "Digital QA Engineer" that visually perceives the browser, interprets user intent, and validates complex UI states — bridging the gap between manual testing and traditional automation.
 
@@ -78,7 +78,7 @@ See [`docs/architecture.png`](docs/architecture.png) for the full visual diagram
 ### 1. Install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/visionqa
+git clone https://github.com/EtornamKoko/visionqa
 cd visionqa
 pip install -r requirements.txt
 cp .env.example .env
