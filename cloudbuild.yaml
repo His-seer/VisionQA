@@ -1,0 +1,62 @@
+steps:
+  # Step 1: Run tests
+  - name: 'python:3.11-slim'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        pip install -r requirements.txt
+        python -m pytest tests/ -v --tb=short
+    env:
+      - 'GOOGLE_API_KEY=${_GOOGLE_API_KEY}'
+
+  # Step 2: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/visionqa/visionqa-api:$SHORT_SHA'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/visionqa/visionqa-api:latest'
+      - '.'
+
+  # Step 3: Push to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/visionqa/visionqa-api'
+
+  # Step 4: Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'visionqa-api'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/visionqa/visionqa-api:$SHORT_SHA'
+      - '--region=us-central1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--memory=1Gi'
+      - '--cpu=1'
+      - '--min-instances=0'
+      - '--max-instances=100'
+      - '--set-secrets=GOOGLE_API_KEY=GOOGLE_API_KEY:latest'
+      - '--set-env-vars=CONFIDENCE_THRESHOLD=0.85'
+
+  # Step 5: Post-deployment health check
+  - name: 'curlimages/curl'
+    entrypoint: sh
+    args:
+      - '-c'
+      - |
+        URL=$(gcloud run services describe visionqa-api --region=us-central1 --format='value(status.url)')
+        sleep 5
+        curl -f "$URL/health" && echo "Health check passed!" || exit 1
+
+substitutions:
+  _GOOGLE_API_KEY: ''
+
+options:
+  logging: CLOUD_LOGGING_ONLY

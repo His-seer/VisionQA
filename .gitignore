@@ -1,0 +1,36 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# Generated outputs (keep structure, ignore contents)
+baselines/diffs/
+reports/*.md
+reports/*.json
+
+# Screenshots (temp files from Selenium)
+/tmp/
+visionqa_*/
+
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Docker
+*.tar
+
+# macOS
+.DS_Store

@@ -1,0 +1,179 @@
+"""
+VisionQA Ticket Generator
+Creates structured bug reports and pushes to Jira/GitHub Issues.
+Includes TTL-based deduplication to prevent duplicate tickets on retries.
+"""
+
+import json
+import time
+from datetime import datetime, timezone
+
+import httpx
+
+from config import Config
+
+
+PERSONA_PREFIX = "\033[91m[VisionQA Ticket]\033[0m"
+
+
+def _narrate(message: str):
+    print(f"{PERSONA_PREFIX} {message}")
+
+
+class TicketGenerator:
+    """Generates structured bug tickets and pushes to issue trackers."""
+
+    _DEDUP_TTL = 300  # 5 minutes
+
+    def __init__(self):
+        self._recent_tickets: dict[str, float] = {}
+
+    def _is_duplicate(self, bug_id: str) -> bool:
+        """Check if this bug_id was recently processed. Prunes expired entries."""
+        now = time.time()
+        # Prune expired
+        expired = [k for k, v in self._recent_tickets.items() if now - v > self._DEDUP_TTL]
+        for k in expired:
+            del self._recent_tickets[k]
+        return bug_id in self._recent_tickets
+
+    def _mark_processed(self, bug_id: str):
+        """Mark a bug_id as recently processed."""
+        self._recent_tickets[bug_id] = time.time()
+
+    def create_ticket(self, analysis_result) -> dict:
+        """
+        Create a structured bug ticket from an AnalysisResult.
+        Returns the ticket as a dict matching the project's bug report schema.
+        """
+        result = analysis_result
+        ticket = {
+            "bugId": result.bug_id,
+            "severity": result.severity,
+            "status": result.status,
+            "title": f"[VisionQA] {result.severity}: {result.analysis[:80]}",
+            "visualEvidence": result.screenshot_path,
+            "analysis": result.analysis,
+            "reproductionSteps": [
+                f"Instruction: {result.instruction}",
+                f"Screenshot: {result.screenshot_path}",
+                f"Confidence: {result.confidence:.0%}",
+            ],
+            "observations": result.observations,
+            "apiCorrelation": {
+                "endpoint": "N/A",
+                "status": "N/A",
+                "verdict": "Visual-only analysis. No API correlation performed.",
+            },
+            "timestamp": result.timestamp,
+            "confidence": result.confidence,
+        }
+
+        _narrate(f"🎫 Ticket created: {ticket['bugId']}")
+        _narrate(f"   Title: {ticket['title']}")
+        _narrate(f"   Severity: {ticket['severity']}")
+
+        return ticket
+
+    def push_to_jira(self, ticket: dict) -> dict:
+        """Push a bug ticket to Jira via webhook."""
+        if not Config.JIRA_WEBHOOK_URL:
+            _narrate("⏭️ Jira webhook not configured. Skipping.")
+            return {"status": "skipped", "reason": "JIRA_WEBHOOK_URL not set"}
+
+        bug_id = ticket["bugId"]
+        if self._is_duplicate(bug_id):
+            _narrate(f"⏭️ Duplicate ticket {bug_id} — already pushed to Jira. Skipping.")
+            return {"status": "skipped", "reason": "duplicate"}
+
+        _narrate(f"📤 Pushing ticket {bug_id} to Jira...")
+
+        try:
+            response = httpx.post(
+                Config.JIRA_WEBHOOK_URL,
+                json=ticket,
+                headers={"Content-Type": "application/json"},
+                timeout=10,
+            )
+
+            if response.status_code in (200, 201, 202):
+                _narrate(f"✅ Jira ticket created successfully.")
+                self._mark_processed(bug_id)
+                return {"status": "success", "response_code": response.status_code}
+            else:
+                _narrate(f"⚠️ Jira responded with {response.status_code}")
+                return {"status": "error", "response_code": response.status_code, "body": response.text[:200]}
+
+        except Exception as e:
+            _narrate(f"❌ Jira push failed: {str(e)}")
+            return {"status": "error", "error": str(e)}
+
+    def push_to_github(self, ticket: dict) -> dict:
+        """Create a GitHub Issue from a bug ticket."""
+        if not Config.GITHUB_TOKEN or not Config.GITHUB_REPO:
+            _narrate("⏭️ GitHub not configured. Skipping.")
+            return {"status": "skipped", "reason": "GITHUB_TOKEN or GITHUB_REPO not set"}
+
+        bug_id = ticket["bugId"]
+        if self._is_duplicate(bug_id):
+            _narrate(f"⏭️ Duplicate ticket {bug_id} — already pushed to GitHub. Skipping.")
+            return {"status": "skipped", "reason": "duplicate"}
+
+        _narrate(f"📤 Creating GitHub Issue for {bug_id}...")
+
+        issue_body = f"""## VisionQA Bug Report
+
+**Bug ID:** {ticket['bugId']}
+**Severity:** {ticket['severity']}
+**Confidence:** {ticket['confidence']:.0%}
+
+### Analysis
+{ticket['analysis']}
+
+### Observations
+{"".join(f"- {obs}" + chr(10) for obs in ticket.get('observations', []))}
+
+### Reproduction Steps
+{"".join(f"- {step}" + chr(10) for step in ticket.get('reproductionSteps', []))}
+
+---
+*Generated by VisionQA — Autonomous Visual SDET*
+"""
+
+        try:
+            response = httpx.post(
+                f"https://api.github.com/repos/{Config.GITHUB_REPO}/issues",
+                json={
+                    "title": ticket["title"],
+                    "body": issue_body,
+                    "labels": ["visionqa", f"severity-{ticket['severity'].lower()}"],
+                },
+                headers={
+                    "Authorization": f"Bearer {Config.GITHUB_TOKEN}",
+                    "Accept": "application/vnd.github+json",
+                },
+                timeout=10,
+            )
+
+            if response.status_code in (200, 201):
+                issue_url = response.json().get("html_url", "unknown")
+                _narrate(f"✅ GitHub Issue created: {issue_url}")
+                self._mark_processed(bug_id)
+                return {"status": "success", "url": issue_url}
+            else:
+                _narrate(f"⚠️ GitHub responded with {response.status_code}")
+                return {"status": "error", "response_code": response.status_code}
+
+        except Exception as e:
+            _narrate(f"❌ GitHub push failed: {str(e)}")
+            return {"status": "error", "error": str(e)}
+
+    def save_ticket_json(self, ticket: dict, output_dir: str = "reports") -> str:
+        """Save the ticket as a local JSON file."""
+        import os
+        os.makedirs(output_dir, exist_ok=True)
+        filepath = os.path.join(output_dir, f"{ticket['bugId']}.json")
+        with open(filepath, "w") as f:
+            json.dump(ticket, f, indent=2)
+        _narrate(f"💾 Ticket saved: {filepath}")
+        return filepath

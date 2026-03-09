@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VisionQA Navigate — https://example.com</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; }
+        .container { max-width: 980px; margin: 0 auto; padding: 2rem; }
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; }
+        h1 { font-size: 1.8rem; color: #f8fafc; }
+        .meta { color: #94a3b8; font-size: 0.85rem; margin-bottom: 2rem; }
+        /* Speech button */
+        #speech-btn {
+            background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.4);
+            color: #a5b4fc; border-radius: 8px; padding: 0.4rem 0.9rem;
+            cursor: pointer; font-size: 0.85rem; font-family: inherit;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        #speech-btn:hover { background: rgba(99,102,241,0.3); }
+        /* Summary grid */
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat { background: #1e293b; border-radius: 8px; padding: 1rem; text-align: center; }
+        .stat .value { font-size: 1.8rem; font-weight: 700; }
+        .stat .label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; }
+        .stat.pass .value { color: #4ade80; }
+        .stat.fail .value { color: #f87171; }
+        .stat.review .value { color: #fbbf24; }
+        .stat.rate .value { color: #60a5fa; }
+        /* Verdict banner */
+        .verdict { padding: 1rem; border-radius: 8px; margin-bottom: 2rem; font-weight: 600; }
+        .verdict.all-pass { background: #14532d; color: #4ade80; }
+        .verdict.has-fail { background: #7f1d1d; color: #fca5a5; }
+        .verdict.has-review { background: #713f12; color: #fde68a; }
+        /* Result cards */
+        .result { background: #1e293b; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem; border-left: 4px solid; }
+        .result.PASS { border-color: #4ade80; }
+        .result.FAIL { border-color: #f87171; }
+        .result.NEEDS_REVIEW { border-color: #fbbf24; }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .badge { padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .badge.PASS { background: #14532d; color: #4ade80; }
+        .badge.FAIL { background: #7f1d1d; color: #fca5a5; }
+        .badge.NEEDS_REVIEW { background: #713f12; color: #fde68a; }
+        .badge.severity { background: #312e81; color: #a5b4fc; }
+        /* Confidence bar */
+        .confidence-bar { height: 6px; background: #334155; border-radius: 3px; margin: 0.5rem 0; }
+        .confidence-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #3b82f6, #818cf8); transition: width 0.8s ease; }
+        /* Observations & grounding */
+        .observations { margin-top: 0.5rem; }
+        .observations li { margin-left: 1.2rem; font-size: 0.85rem; color: #cbd5e1; }
+        .grounding-section { margin-top: 0.75rem; padding: 0.75rem; background: #0f172a; border-radius: 6px; border: 1px solid #334155; }
+        .grounding-section h4 { font-size: 0.8rem; color: #818cf8; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.3rem; }
+        .grounding-section li { font-size: 0.8rem; color: #94a3b8; margin-left: 1rem; word-break: break-all; }
+        .grounding-section a { color: #60a5fa; text-decoration: none; }
+        .grounding-section a:hover { text-decoration: underline; }
+        /* Screenshot */
+        details summary { cursor: pointer; font-size: 0.8rem; color: #64748b; user-select: none; margin-top: 0.8rem; }
+        details img { margin-top: 0.5rem; max-width: 100%; border-radius: 6px; border: 1px solid #334155; }
+        /* Navigator steps trail */
+        .nav-trail { margin-bottom: 2rem; }
+        .nav-trail h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+        .nav-step { background: #1e293b; border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem; border-left: 4px solid #3b82f6; }
+        .nav-step-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; font-size: 0.85rem; }
+        .step-badge { background: #1d4ed8; color: #bfdbfe; border-radius: 4px; padding: 0.1rem 0.5rem; font-size: 0.7rem; font-weight: 700; }
+        .step-badge.skipped { background: #713f12; color: #fde68a; }
+        .screenshots-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.75rem; }
+        .shot-panel { background: #0f172a; border-radius: 6px; padding: 0.4rem; }
+        .shot-panel .shot-label { font-size: 0.65rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+        .shot-panel img { width: 100%; border-radius: 4px; border: 1px solid #334155; display: block; }
+        .shot-panel.annotated .shot-label { color: #f87171; }
+        .shot-panel.annotated img { border-color: #f87171; }
+        /* Chat panel */
+        .chat-panel {
+            margin-top: 3rem; background: #1e293b; border-radius: 12px;
+            padding: 1.5rem; border: 1px solid #334155;
+        }
+        .chat-panel h2 { font-size: 1.1rem; margin-bottom: 0.4rem; color: #f8fafc; }
+        .chat-panel p { font-size: 0.85rem; color: #94a3b8; margin-bottom: 1rem; }
+        #chat-messages { min-height: 80px; max-height: 320px; overflow-y: auto; margin-bottom: 1rem; }
+        .msg { padding: 0.6rem 0.8rem; border-radius: 8px; margin-bottom: 0.5rem; font-size: 0.875rem; line-height: 1.5; }
+        .msg.user { background: #312e81; color: #c7d2fe; align-self: flex-end; }
+        .msg.agent { background: #0f172a; color: #cbd5e1; border: 1px solid #334155; white-space: pre-wrap; }
+        .msg.thinking { color: #64748b; font-style: italic; }
+        .chat-input-row { display: flex; gap: 0.5rem; }
+        #chat-input {
+            flex: 1; background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+            padding: 0.6rem 0.8rem; color: #e2e8f0; font-family: inherit; font-size: 0.875rem;
+            resize: none;
+        }
+        #chat-input:focus { outline: none; border-color: #6366f1; }
+        #chat-send {
+            background: #6366f1; color: white; border: none; border-radius: 8px;
+            padding: 0.6rem 1.2rem; cursor: pointer; font-family: inherit;
+            font-size: 0.875rem; font-weight: 600; transition: background 0.2s;
+        }
+        #chat-send:hover { background: #4f46e5; }
+        #chat-send:disabled { background: #334155; cursor: not-allowed; }
+        /* Footer */
+        .footer { text-align: center; color: #64748b; font-size: 0.75rem; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #334155; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>VisionQA Navigate — https://example.com</h1>
+                <div class="meta">Generated 2026-03-03 00:03:02 UTC | Engine: VisionQA with gemini-2.5-flash | Threshold: 85%</div>
+            </div>
+            <button id="speech-btn" onclick="toggleSpeech()">🔊 Replay Verdict</button>
+        </div>
+
+        <div class="summary">
+            <div class="stat"><div class="value">1</div><div class="label">Total Checks</div></div>
+            <div class="stat pass"><div class="value">0</div><div class="label">Passed</div></div>
+            <div class="stat fail"><div class="value">1</div><div class="label">Failed</div></div>
+            <div class="stat review"><div class="value">0</div><div class="label">Needs Review</div></div>
+            <div class="stat rate"><div class="value">0.0%</div><div class="label">Pass Rate</div></div>
+        </div>
+
+        
+        <div class="verdict has-fail">🚨 1 FAILURE(S) DETECTED — Visual regressions found.</div>
+        
+
+        <h2 style="margin-bottom: 1rem; font-size: 1.2rem;">Detailed Results</h2>
+
+        
+
+        
+        <div class="result FAIL">
+            <div class="result-header">
+                <div>
+                    <span class="badge FAIL">FAIL</span>
+                    <span class="badge severity">CRITICAL</span>
+                    <span style="font-size: 0.8rem; color: #94a3b8; margin-left: 0.5rem;">VQA-20260303-000253</span>
+                </div>
+                <span style="font-size: 0.85rem; color: #94a3b8;">100% confidence</span>
+            </div>
+            <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.3rem;">Verify there is a shopping cart icon and a checkout button with a price displayed. Also verify there is a user profile avatar in the top navigation bar.</div>
+            <div class="confidence-bar"><div class="confidence-fill" style="width: 100%;"></div></div>
+            <div style="margin-top: 0.5rem;">The UI is missing all specified elements: a shopping cart icon, a checkout button with a price, and a user profile avatar in a top navigation bar.</div>
+            
+            <ul class="observations">
+                
+                <li>No shopping cart icon is visible.</li>
+                
+                <li>No checkout button is visible.</li>
+                
+                <li>No price is displayed.</li>
+                
+                <li>No user profile avatar is visible.</li>
+                
+                <li>No top navigation bar is visible.</li>
+                
+            </ul>
+            
+            
+            <div class="grounding-section">
+                <h4>🔍 Grounding Evidence</h4>
+                <ul>
+                
+                    <li>Search context: <style>
+.container {
+  align-items: center;
+  border-radius: 8px;
+  display: flex;
+  font-family: Google Sans, Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  padding: 8px 12px;
+}
+.chip {
+  display: inline-block;
+  border: solid 1px;
+  border-radius: 16px;
+  min-width: 14px;
+  padding:</li>
+                
+                    <li>getwcag.com — https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGpHaXdIAzpAVTbmGK1K8QaQfJqNj86gNBgN2xCSOLxoeuFuLrp3dvNtJtlacf3Ed1qZDqC1_ArPSYj__FzEPFa0tCILog3n4vx7FKULPEyWzjIrmE5NHGOhFTchg11wE5vKpS2l_O0ObZMoL7wJZxlqYKe3g==</li>
+                
+                    <li>medium.com — https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQFVzo11GFppsKu1h2i6pKh_7hv5K3utVau_70Gaz2b_fmb9tXAnOlfkwRlTvDp9_oMiPy8zhaPzhG-F7BGdaVvhI1JYCT9f_hu847kczFjQuzmprcaDWzaC8-CA8uOI0useP1vEXDSAhwZnzYOD8ZlD2xZllVNIX4NM4TY0iw==</li>
+                
+                    <li>testmuai.com — https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHtb-Nqd0P9CDYF9wX05XQkqKI1_rKzCIlkvS1v5OUMgDX4I_vRoG7xh4nSOuf7jbHSRmHrEbxn1mZEl-mciw4YUj17q_Orco6KieH0dD9z2y5cmTEKN9vFKaTHwkhGu-SZsLYisQgBYStTrKjHdky28x739-r8m5JfTQ==</li>
+                
+                    <li>wordpress.org — https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQETW4W7qyvNRtWBw9tRa1rdHa48WT61tl9STudIZI_bBgXft0ambID2jpiHlfVUxKkiikp6D_m8TRDikm2ExtcKrwertQJzIkEewLxGUV37T6Q6Kk8AHp3smQdWAdvYCIwM1ZByYcLZ1bmJH_vnq-6YYf6bjVnteQjEYWsIP21QzDwLT45GfebjMit7M6Q=</li>
+                
+                </ul>
+            </div>
+            
+            
+            <details>
+                <summary>📷 Screenshot Evidence</summary>
+                <img src="data:image/png;base64,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BgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAANA9rrUAABAASURBVAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAUAAAAACUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZAAAAAICIoAwAAAAAQERQBgAAAAAgIigDAAAAABARlAEAAAAAiAjKAAAAAABEBGUAAAAAACKCMgAAAAAAEUEZgP9hxw4EAAAAAAT5W68wQGEEAAAAsAhlAAAAAAAWoQwAAAAAwCKUAQAAAABYhDIAAAAAAItQBgAAAABgEcoAAAAAACxCGQAAAACARSgDAAAAALAIZQAAAAAAFqEMAAAAAMAilAEAAAAAWIQyAAAAAADy6/zbAAACpUlEQVSLUAYAAAAAYBHKAAAAAAAsQhkAAAAAgEUoAwAAAACwCGUAAAAAABahDAAAAADAIpQBAAAAAFiEMgAAAAAAi1AGAAAAAGARygAAAAAALEIZAAAAAIBFKAMAAAAAsAhlAAAAAAAWoQwAAAAAwCKUAQAAAABYhDIAAAAAAItQBgAAAABgEcoAAAAAACxCGQAAAACARSgDAAAAALAIZQAAAAAAFqEMAAAAAMAilAEAAAAAWIQyAAAAAACLUAYAAAAAYBHKAAAAAAAsQhkAAAAAgEUoAwAAAACwCGUAAAAAABahDAAAAADAIpQBAAAAAFiEMgAAAAAAi1AGAAAAAGARygAAAAAALEIZAAAAAIBFKAMAAAAAsAhlAAAAAAAWoQwAAAAAwCKUAQAAAABYhDIAAAAAAItQBgAAAABgEcoAAAAAACxCGQAAAACARSgDAAAAALAIZQAAAAAAFqEMAAAAAMAilAEAAAAAWIQyAAAAAACLUAYAAAAAYBHKAAAAAAAsQhkAAAAAgEUoAwAAAACwCGUAAAAAABahDAAAAADAIpQBAAAAAFiEMgAAAAAAi1AGAAAAAGARygAAAAAALEIZAAAAAIBFKAMAAAAAsAhlAAAAAAAWoQwAAAAAwCKUAQAAAABYhDIAAAAAAItQBgAAAABgEcoAAAAAACxCGQAAAACARSgDAAAAALAIZQAAAAAAFqEMAAAAAMAilAEAAAAAWIQyAAAAAACLUAYAAAAAYBHKAAAAAAAsQhkAAAAAgEUoAwAAAACwCGUAAAAAABahDAAAAADAIpQBAAAAAFiEMgAAAAAAi1AGAAAAAGARygAAAAAALEIZAAAAAIBFKAMAAAAAsAhlAAAAAAAWoQwAAAAAwCKUAQAAAABYhDIAAAAAAEsAAAD//3av+NoAAAAGSURBVAMA+/fPhYY+I7MAAAAASUVORK5CYII=" alt="screenshot">
+            </details>
+            
+        </div>
+        
+
+        <!-- Ask VisionQA chat panel -->
+        <div class="chat-panel">
+            <h2>💬 Ask VisionQA</h2>
+            <p>Ask the agent anything about this report — e.g. <em>"Why did check 1 fail?"</em> or <em>"What should I fix first?"</em></p>
+            <div id="chat-messages"></div>
+            <div class="chat-input-row">
+                <textarea id="chat-input" rows="2" placeholder="Ask about this report…" onkeydown="handleKey(event)"></textarea>
+                <button id="chat-send" onclick="sendChat()">Ask →</button>
+            </div>
+        </div>
+
+        <div class="footer">Report ID: VQA-RPT-20260303000302 | VisionQA — The Autonomous Visual SDET</div>
+    </div>
+
+    <script>
+        // ── Speech Synthesis ──────────────────────────────────────────────
+        (function() {
+            const status = "1 failure detected";
+            const text = "VisionQA verdict. " + status + ". Pass rate: 0.0 percent.";
+            let currentUtterance = null;
+            let isMuted = false;
+
+            function speakVerdict() {
+                if (isMuted || !window.speechSynthesis) return;
+                window.speechSynthesis.cancel();
+                currentUtterance = new SpeechSynthesisUtterance(text);
+                currentUtterance.rate = 0.95;
+                currentUtterance.pitch = 1.0;
+                window.speechSynthesis.speak(currentUtterance);
+            }
+
+            window.toggleSpeech = function() {
+                const btn = document.getElementById('speech-btn');
+                if (!isMuted) {
+                    window.speechSynthesis.cancel();
+                    isMuted = true;
+                    btn.textContent = '🔇 Muted';
+                    btn.style.color = '#64748b';
+                } else {
+                    isMuted = false;
+                    btn.textContent = '🔊 Replay Verdict';
+                    btn.style.color = '#a5b4fc';
+                    speakVerdict();
+                }
+            };
+
+            // Speak ~600ms after page load (allows voices to load)
+            setTimeout(speakVerdict, 600);
+        })();
+
+        // ── Chat Panel ────────────────────────────────────────────────────
+        const reportSummary = `VisionQA Report: VisionQA Navigate — https://example.com. 1 checks. 0 passed, 1 failed, 0 need review. Pass rate: 0.0%.`;
+
+        function appendMsg(cls, text) {
+            const div = document.createElement('div');
+            div.className = 'msg ' + cls;
+            div.textContent = text;
+            const container = document.getElementById('chat-messages');
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div;
+        }
+
+        async function sendChat() {
+            const input = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('chat-send');
+            const question = input.value.trim();
+            if (!question) return;
+
+            input.value = '';
+            sendBtn.disabled = true;
+            appendMsg('user', question);
+            const thinking = appendMsg('thinking', 'VisionQA is thinking…');
+
+            try {
+                const res = await fetch('/v1/agent/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question, report_context: reportSummary }),
+                });
+                const data = await res.json();
+                thinking.remove();
+                appendMsg('agent', data.answer || 'No answer returned.');
+
+                // Speak the answer
+                if (window.speechSynthesis) {
+                    const utt = new SpeechSynthesisUtterance(data.answer);
+                    utt.rate = 1.0;
+                    window.speechSynthesis.speak(utt);
+                }
+            } catch(e) {
+                thinking.remove();
+                appendMsg('agent', '⚠️ Could not reach the VisionQA API. Make sure the server is running on localhost:8080.');
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        function handleKey(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+        }
+    </script>
+</body>
+</html>
